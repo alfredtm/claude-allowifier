@@ -1,6 +1,7 @@
 # allowifier
 
-A Claude Code plugin that bypasses the organization policy layer while keeping your own permission rules intact. Organization-level deny rules, ask lists, and `claudeMd` content are not loaded.
+A Claude Code plugin that bypasses the organization policy layer while keeping your own permission rules intact. 
+
 
 **For sandbox use only. This is a convenience tool, not a security boundary.**
 
