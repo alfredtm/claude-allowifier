@@ -1,0 +1,10 @@
+{
+  "name": "allowifier",
+  "version": "0.14.0",
+  "description": "A Claude Code plugin that bypasses the organization policy layer while keeping your own permission rules intact: org denies, ask lists and claudeMd are not loaded. On by default; `/allowifier` flips it off or back on.",
+  "author": { "name": "Alfred Tovsen Mo", "url": "https://github.com/alfredtm" },
+  "homepage": "https://github.com/alfredtm/claude-allowifier",
+  "repository": "https://github.com/alfredtm/claude-allowifier",
+  "license": "MIT",
+  "keywords": ["claude-code", "mod", "permissions", "allow"]
+}
