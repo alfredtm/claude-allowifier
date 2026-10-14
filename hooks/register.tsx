@@ -2,10 +2,11 @@
 // still hold.
 //
 // On (setup.ts), allowifier removes the org policy layer at the API:
-// org settings are fetched from wherever ANTHROPIC_BASE_URL points,
-// and the proxy it keeps running answers that fetch with nothing.
-// What remains beneath the mod is the engine's own judgment, and
-// over it the mod's one principle:
+// Claude Code skips the org-settings fetch on a custom base URL
+// without the first-party flag — over intility-inference, by taking
+// that flag away beneath its gateway; on its own, by pointing the
+// base URL at a local proxy. What remains beneath the mod is the
+// engine's own judgment, and over it the mod's one principle:
 //
 //   The user's own settings decide. An ask or deny rule there holds,
 //   exactly as written — user, project, or managed settings alike.
@@ -23,7 +24,7 @@
 import type { EngineInterface, Register } from 'claude-code'
 
 import { absolute, bashCommand, configDir, filePath, insideRoots, workRoots } from './paths'
-import { ensureLauncher, ensureEnabled, flip } from './setup'
+import { cleanComposed, ensureComposed, ensureEnabled, ensureLauncher, flip, stepAside } from './setup'
 import type { SetupIo } from './setup'
 
 // The engine's $ reaches only this file, spelled literally: env names
@@ -42,7 +43,7 @@ function setupIo($: EngineInterface): SetupIo {
       await $.process.run(['launchctl', 'unload', plist])
       await $.process.run(['launchctl', 'load', plist])
     },
-    fetchSettings: url => $.process.run(
+    fetchText: url => $.process.run(
       ['curl', '-s', '-m', '5', '--retry', '10', '--retry-connrefused', '--retry-delay', '1', url],
       { timeoutMs: 30000 },
     ),
@@ -117,24 +118,59 @@ export const register: Register = on => {
     return allow('reading the web')
   }).catch(($, e, next) => next(e))   // a fault falls to the engine's verdict, never wider
 
-  // /allowifier: the switch, in Claude. One command, no arguments —
-  // it flips; the next session runs the new way.
+  // Session start: the command, and the one repair that cannot wait
+  // for a Bash check — a composed line intility-inference went out
+  // from under, which nothing answers on. Neither waits on the
+  // session.
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'allowifier',
-      description: 'Flip allowifier: the organization policy layer back on, or off again. The next session runs the new way.',
+      description: 'The org policy layer off, or back on: /allowifier on, off, status — or no argument to flip. The next session runs the new way.',
     })
+
+    const home = await $.env.get('HOME')
+    if (home !== undefined) {
+      const io = setupIo($)
+      void cleanComposed(io, configDir(home, await $.env.get('CLAUDE_CONFIG_DIR'))).catch(() => {})
+    }
+
     return next(e)
   }).catch(($, e, next) => next(e))   // a fault leaves the session starting as it would
 
   on('command.run', { command: 'allowifier' }, async ($, e, next) => {
-    if ((e.args ?? '').trim() !== '') return { text: 'usage: /allowifier — no arguments; it flips' }
+    const arg = (e.args ?? '').trim()
+    if (arg !== '' && arg !== 'on' && arg !== 'off' && arg !== 'status') {
+      return { text: 'usage: /allowifier [on | off | status] — no argument flips' }
+    }
 
     const home = await $.env.get('HOME')
     if (home === undefined) return { text: 'allowifier: no home to switch from' }
 
     const io = setupIo($)
     await ensureLauncher(io, home)   // the switch, there even before a first Bash check
-    return { text: await flip(io, home, configDir(home, await $.env.get('CLAUDE_CONFIG_DIR'))) }
+    return { text: await flip(io, home, configDir(home, await $.env.get('CLAUDE_CONFIG_DIR')), arg === '' ? undefined : arg) }
   }).catch(($, e, next) => next(e))   // a fault falls to the engine's verdict, never wider
+
+  // /inference, cooperated with: its arming and disarming commands
+  // run against the settings they expect — allowifier steps aside
+  // first, composes back on top after whatever they armed. A command
+  // allowifier holds no line for runs as it would; a fault in the
+  // dance never holds the command.
+  on('command.run', { command: 'inference' }, async ($, e, next) => {
+    const parts = (e.args ?? '').trim().split(/\s+/).filter(p => p !== '')
+    const [head, second] = parts
+    const arming = head === 'on' || head === 'login'
+    const takes = arming || head === 'off' || head === 'logout' || (head === 'models' && second === 'set')
+    if (!takes) return next(e)
+
+    const home = await $.env.get('HOME')
+    const dir = home !== undefined ? configDir(home, await $.env.get('CLAUDE_CONFIG_DIR')) : undefined
+    if (home === undefined || dir === undefined) return next(e)
+
+    const io = setupIo($)
+    await stepAside(io, dir)          // out of the way — its command, its settings
+    const answer = await next(e)
+    if (arming) await ensureComposed(io, dir)   // back on top of what it armed
+    return answer
+  }).catch(($, e, next) => next(e))   // a fault leaves the command as it would have run
 }

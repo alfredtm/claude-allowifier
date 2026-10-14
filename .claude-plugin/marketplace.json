@@ -10,7 +10,7 @@
         "command": "for f in \"$HOME\"/.claude/plugins/marketplaces/*/install-allowifier.sh; do [ -f \"$f\" ] && grep -q '\"name\": *\"allowifier\"' \"$(dirname \"$f\")/.claude-plugin/marketplace.json\" 2>/dev/null && exec sh \"$f\"; done; exit 1",
         "timeout": 120
       },
-      "description": "A Claude Code plugin that bypasses the organization policy layer while keeping your own permission rules intact: org denies, ask lists and claudeMd are not loaded. On by default; `/allowifier` flips it off or back on."
+      "description": "A Claude Code plugin that bypasses the organization policy layer while keeping your own permission rules intact: org denies, ask lists and claudeMd are not loaded. Composes on top of intility-inference, or stands alone behind its own local proxy. On by default; `/allowifier on`, `off`, `status` — or `/allowifier` to flip."
     }
   ]
 }

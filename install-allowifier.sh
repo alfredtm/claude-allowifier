@@ -7,7 +7,9 @@
 # What it does: put the `allowifier` switch in ~/.local/bin, and turn
 # allowifier on so the first session after install already runs without
 # the org policy layer. `allowifier off` writes the marker, and this
-# never turns it back on over that choice.
+# never turns it back on over that choice; with the marker there it
+# runs `off` instead, which cleans up whatever an older version left
+# running.
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 
@@ -16,9 +18,12 @@ mkdir -p "$HOME/.local/bin"
 cp "$ROOT/bin/allowifier" "$HOME/.local/bin/allowifier" 2>/dev/null || true
 chmod +x "$HOME/.local/bin/allowifier" 2>/dev/null || true
 
-# on, unless the user turned it off
+# on, unless the user turned it off — then off again, which is the
+# cleaner
 if [ ! -f "$HOME/.claude/allowifier.off" ]; then
   "$HOME/.local/bin/allowifier" on >/dev/null 2>&1 || true
+else
+  "$HOME/.local/bin/allowifier" off >/dev/null 2>&1 || true
 fi
 
 # the one line of stdout: the plugin directory
